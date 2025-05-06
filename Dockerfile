@@ -2,7 +2,7 @@
 FROM python:3.9-slim
 
 # 設定工作目錄
-WORKDIR /app
+WORKDIR /main
 
 # 複製專案內所有檔案
 COPY . .
