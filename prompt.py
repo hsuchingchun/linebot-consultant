@@ -16,7 +16,6 @@ class Prompt:
         self._msg_list = messages
 
     def generate_prompt(self):
-        # 將 msg_list 轉為 ChatGPT 的 messages 格式
         chat_history = [
             {"role": "system", "content": (
                 "你是一位中立且有邏輯的顧問型 AI，協助團體進行決策討論。"
@@ -25,14 +24,14 @@ class Prompt:
         ]
 
         for msg in self.msg_list:
-            # 假設格式為 user123:訊息
             if ":" in msg:
                 user, content = msg.split(":", 1)
                 chat_history.append({"role": "user", "content": f"{user} 說：{content}"})
 
         try:
-            response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",  # 或 gpt-4
+            client = openai.OpenAI()
+            response = client.chat.completions.create(
+                model="gpt-3.5-turbo",
                 messages=chat_history,
                 temperature=0.7,
                 max_tokens=300
@@ -41,4 +40,3 @@ class Prompt:
 
         except Exception as e:
             return f"⚠️ AI 回覆發生錯誤：{str(e)}"
-        
