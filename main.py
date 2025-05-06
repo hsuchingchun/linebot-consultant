@@ -10,9 +10,15 @@ from prompt import Prompt  # 顧問型 AI prompt 處理
 
 app = Flask(__name__)
 
-# Firebase 初始化
-cred = credentials.Certificate("serviceAccountKey.json")
-firebase_admin.initialize_app(cred)
+# ====== Firebase 初始化 ======
+def get_firebase_credentials_from_env():
+    firebase_credentials = os.getenv("FIREBASE_CREDENTIALS")
+    service_account_info = json.loads(firebase_credentials)
+    print("✅ 成功從環境變數讀取 Firebase 金鑰")
+    return credentials.Certificate(service_account_info)
+
+firebase_cred = get_firebase_credentials_from_env()
+firebase_admin.initialize_app(firebase_cred)
 db = firestore.client()
 
 # LINE bot 設定
