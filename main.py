@@ -5,6 +5,7 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 from datetime import datetime
 import os
+import json
 
 from prompt import Prompt  # 顧問型 AI prompt 處理
 
