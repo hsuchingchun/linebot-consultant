@@ -55,3 +55,7 @@ def webhook():
             )
 
     return "OK"
+if __name__ == "__main__":
+    port = int(os.getenv('PORT', 8080))
+    print(f"🚀 應用程式啟動中，監聽埠號 {port}...")
+    app.run(host='0.0.0.0', port=port)
