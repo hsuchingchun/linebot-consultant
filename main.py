@@ -1,6 +1,6 @@
 from flask import Flask, request
 from linebot import LineBotApi, WebhookParser
-from linebot.models import MessageEvent, TextMessage, TextSendMessage
+from linebot.models import MessageEvent, TextMessage, TextSendMessage, SourceGroup, SourceRoom
 import firebase_admin
 from firebase_admin import credentials, firestore
 from datetime import datetime
@@ -34,26 +34,33 @@ def webhook():
 
     for event in events:
         if isinstance(event, MessageEvent) and isinstance(event.message, TextMessage):
-            group_id = event.source.group_id or event.source.user_id
+            # 判斷對話來源：群組 / 聊天室 / 一對一
+            if isinstance(event.source, SourceGroup):
+                source_id = event.source.group_id
+            elif isinstance(event.source, SourceRoom):
+                source_id = event.source.room_id
+            else:
+                source_id = event.source.user_id  # 一對一私訊
+
             user_id = event.source.user_id
             msg_text = event.message.text
             timestamp = datetime.now().isoformat()
 
-            # 儲存 Firestore（按群組分類）
-            db.collection("groups").document(group_id).collection("messages").add({
+            # 儲存 Firestore（按來源 ID 分類）
+            db.collection("groups").document(source_id).collection("messages").add({
                 "user_id": user_id,
                 "text": msg_text,
                 "timestamp": timestamp
             })
 
-            # 取得群組歷史 & 產生回覆
-            history_ref = db.collection("groups").document(group_id).collection("messages")
+            # 取得最近 20 則訊息 & 產生 AI 回覆
+            history_ref = db.collection("groups").document(source_id).collection("messages")
             docs = history_ref.order_by("timestamp", direction=firestore.Query.DESCENDING).limit(20).stream()
             messages = [f"{doc.to_dict()['user_id']}:{doc.to_dict()['text']}" for doc in reversed(list(docs))]
 
             prompt = Prompt()
             prompt.msg_list = messages
-            reply = prompt.generate_prompt()  # 回傳 AI 顧問型建議
+            reply = prompt.generate_prompt()  # 顧問型 AI 回覆
 
             # LINE 回覆
             line_bot_api.reply_message(
@@ -62,7 +69,3 @@ def webhook():
             )
 
     return "OK"
-if __name__ == "__main__":
-    port = int(os.getenv('PORT', 8080))
-    print(f"🚀 應用程式啟動中，監聽埠號 {port}...")
-    app.run(host='0.0.0.0', port=port)
