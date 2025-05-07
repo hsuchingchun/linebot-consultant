@@ -26,6 +26,7 @@ db = firestore.client()
 line_bot_api = LineBotApi(os.getenv("LINE_CHANNEL_ACCESS_TOKEN"))
 parser = WebhookParser(os.getenv("LINE_CHANNEL_SECRET"))
 
+#route 為 Line Webhook 接 GCP 網址後面要加的 /callback (可自己設定)
 @app.route("/callback", methods=["POST"])
 def webhook():
     signature = request.headers["X-Line-Signature"]
