@@ -137,3 +137,5 @@ dist
 
 # Firebase Admin 金鑰
 serviceAccountKey.json
+
+.DS_Store
