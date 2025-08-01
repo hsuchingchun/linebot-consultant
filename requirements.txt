@@ -1,7 +1,7 @@
 flask
 python-dotenv
 line-bot-sdk
-openai==1.14.2
+openai
 gunicorn
 
 firebase-admin==6.0.1

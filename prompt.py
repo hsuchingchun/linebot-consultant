@@ -1,20 +1,19 @@
 import os
-import openai
+from openai import OpenAI
+from openai.types.chat import ChatCompletionMessageParam
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# 初始化 OpenAI Client（新版 SDK）
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def ask_assistant(message_list: list[str]) -> str:
     """
-    使用 ChatCompletion 呼叫 OpenAI GPT-4 或 GPT-3.5
+    使用 ChatCompletion 呼叫 OpenAI GPT-4.1
     將群組訊息整合並產生回應
     """
 
-    # 先把 message_list 轉成 chat messages 格式 (system + user messages)
-    # 你可以調整 system prompt 內容控制助理風格
-
     system_prompt = (
-         "✅ 角色目標：\n"
-         "協助使用者整合、重述、彙整目前小組討論的資訊。\n"
+        "✅ 角色目標：\n"
+        "協助使用者整合、重述、彙整目前小組討論的資訊。\n"
         "保持中立，不引導、不補充、不提問。\n"
         "不主動提出觀點，也不提示尚未討論的內容。\n\n"
         "💬 System Prompt 設定語句：\n"
@@ -27,20 +26,20 @@ def ask_assistant(message_list: list[str]) -> str:
         "「我整理一下目前的觀點：A 有財務背景、B 擅長對外溝通、C 的分析能力尚未明確提及。」"
     )
 
-    # 將訊息轉換成 chat completion user 格式
-    chat_messages = [{"role": "system", "content": system_prompt}]
+    # ➤ 準備 chat messages 格式
+    chat_messages: list[ChatCompletionMessageParam] = [
+        {"role": "system", "content": system_prompt}
+    ]
     for msg in message_list:
         chat_messages.append({"role": "user", "content": msg})
 
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4.1",  # 或 "gpt-3.5-turbo"
+        response = client.chat.completions.create(
+            model="gpt-4o",  # 可換成 "gpt-3.5-turbo" 如需較快回應
             messages=chat_messages,
-            temperature=0.3,
+            temperature=0.7,
             max_tokens=500,
-            n=1,
         )
-        # 取得回應文字
         return response.choices[0].message.content.strip()
     except Exception as e:
         return f"⚠️ AI 回應失敗：{e}"
