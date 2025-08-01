@@ -1,42 +1,46 @@
-import openai
 import os
+import openai
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
+assistant_id = os.getenv("ASSISTANT_ID") 
 
-class Prompt:
-    def __init__(self):
-        self.msg_list = []
+def ask_assistant(message_list: list[str]) -> str:
+    """
+    將群組對話列表傳給 Assistant 做資訊整合
+    """
 
-    @property
-    def msg_list(self):
-        return self._msg_list
+    # 1. 建立對話 thread
+    thread = openai.beta.threads.create()
 
-    @msg_list.setter
-    def msg_list(self, messages):
-        self._msg_list = messages
+    # 2. 把每則訊息加入 thread
+    for msg in message_list:
+        openai.beta.threads.messages.create(
+            thread_id=thread.id,
+            role="user",
+            content=msg
+        )
 
-    def generate_prompt(self):
-        chat_history = [
-            {"role": "system", "content": (
-                "你是一位中立且有邏輯的顧問型 AI，協助團體進行決策討論。"
-                "請針對目前的討論內容，給出具體建議、提醒可能忽略的要素，或提出反思性問題。"
-            )}
-        ]
+    # 3. 呼叫 assistant 進行 run
+    run = openai.beta.threads.runs.create(
+        thread_id=thread.id,
+        assistant_id=assistant_id
+    )
 
-        for msg in self.msg_list:
-            if ":" in msg:
-                user, content = msg.split(":", 1)
-                chat_history.append({"role": "user", "content": f"{user} 說：{content}"})
+    # 4. 等待 assistant 完成（同步輪詢）
+    while True:
+        run_status = openai.beta.threads.runs.retrieve(
+            thread_id=thread.id,
+            run_id=run.id,
+        )
+        if run_status.status == "completed":
+            break
+        elif run_status.status in ["failed", "cancelled", "expired"]:
+            raise Exception(f"🛑 Assistant failed: {run_status.status}")
 
-        try:
-            client = openai.OpenAI()
-            response = client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=chat_history,
-                temperature=0.7,
-                max_tokens=300
-            )
-            return response.choices[0].message.content.strip()
+    # 5. 抓取 Assistant 的回覆
+    messages = openai.beta.threads.messages.list(thread_id=thread.id)
+    for message in reversed(messages.data):
+        if message.role == "assistant":
+            return message.content[0].text.value
 
-        except Exception as e:
-            return f"⚠️ AI 回覆發生錯誤：{str(e)}"
+    return "（目前無可用回應）"
