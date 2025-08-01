@@ -72,7 +72,11 @@ def webhook():
                 for doc in docs_reversed:
                     data = doc.to_dict()
                     role = "user" if data.get("from") == "user" else "assistant"
-                    content = f"{data.get('user_id')}: {data.get('text')}"
+                    user = data.get("user_id", "unknown")
+                    text = data.get("text", "")
+
+                    # 確保 content 是字串
+                    content = f"{user}: {text}" if isinstance(text, str) else str(text)
                     messages.append({"role": role, "content": content})
 
                 try:

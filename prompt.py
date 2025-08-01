@@ -5,7 +5,7 @@ from openai.types.chat import ChatCompletionMessageParam
 # 初始化 OpenAI Client（新版 SDK）
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-def ask_assistant(message_list: list[str]) -> str:
+def ask_assistant(message_list: list[ChatCompletionMessageParam]) -> str:
     """
     使用 ChatCompletion 呼叫 OpenAI GPT-4.1
     將群組訊息整合並產生回應
@@ -29,9 +29,9 @@ def ask_assistant(message_list: list[str]) -> str:
     # ➤ 準備 chat messages 格式
     chat_messages: list[ChatCompletionMessageParam] = [
         {"role": "system", "content": system_prompt}
-    ]
-    for msg in message_list:
-        chat_messages.append({"role": "user", "content": msg})
+    ] + message_list
+    # for msg in message_list:
+    #     chat_messages.append({"role": "user", "content": msg})
 
     try:
         response = client.chat.completions.create(
