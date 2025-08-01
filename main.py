@@ -34,9 +34,8 @@ def webhook():
     events = parser.parse(body, signature)
 
     for event in events:
-        # 只處理文字訊息
         if isinstance(event, MessageEvent) and isinstance(event.message, TextMessage):
-            # 判斷訊息來源（群組、聊天室、一對一）
+            # 取得來源 ID
             if isinstance(event.source, SourceGroup):
                 source_id = event.source.group_id
             elif isinstance(event.source, SourceRoom):
@@ -48,7 +47,7 @@ def webhook():
             msg_text = event.message.text
             timestamp = datetime.now().isoformat()
 
-            # 儲存使用者訊息，並標記 "from": "user"
+            # 儲存使用者訊息
             db.collection("groups").document(source_id).collection("messages").add({
                 "user_id": user_id,
                 "text": msg_text,
@@ -56,38 +55,48 @@ def webhook():
                 "from": "user"
             })
 
-            # 讀取最近 20 筆訊息（包含使用者與 AI）
+            # 讀取最近 20 筆訊息
             history_ref = db.collection("groups").document(source_id).collection("messages")
             docs = list(history_ref.order_by("timestamp", direction=firestore.Query.DESCENDING).limit(20).stream())
+            docs_reversed = list(reversed(docs))
 
-            # messages 格式化為純文字陣列，交給 ask_assistant 使用
-            messages = [f"{doc.to_dict()['user_id']}：{doc.to_dict()['text']}" for doc in reversed(docs)]
+            # 取得所有使用者訊息與不同使用者 ID
+            user_msgs = [doc for doc in docs_reversed if doc.to_dict().get("from") == "user"]
+            user_ids = set(doc.to_dict().get("user_id") for doc in user_msgs)
 
-            # 只在最近至少有兩則「使用者」訊息時，才讓 AI 回覆
-            user_msgs = [doc for doc in reversed(docs) if doc.to_dict().get("from") == "user"]
-            if len(user_msgs) >= 2:
+            # 條件：至少三則使用者訊息，且來自三位不同使用者
+            # 先測試兩個
+            if len(user_msgs) >= 2 and len(user_ids) >= 2:
+                # 將訊息轉換成 ChatCompletion 格式
+                messages = []
+                for doc in docs_reversed:
+                    data = doc.to_dict()
+                    role = "user" if data.get("from") == "user" else "assistant"
+                    content = f"{data.get('user_id')}: {data.get('text')}"
+                    messages.append({"role": role, "content": content})
+
                 try:
                     reply = ask_assistant(messages)
 
-                    # 儲存 AI 回覆，標記 "from": "assistant"
+                    # 儲存 AI 回覆
                     db.collection("groups").document(source_id).collection("messages").add({
-                        "user_id": "AI",
+                        "user_id": "sumi_AI",  # 可換成 nomi_AI 等
                         "text": reply,
                         "timestamp": datetime.now().isoformat(),
                         "from": "assistant"
                     })
 
-                    # 回覆 LINE
+                    # 回覆到 LINE
                     line_bot_api.reply_message(
                         event.reply_token,
                         TextSendMessage(text=reply)
                     )
 
                 except Exception as e:
-                    error_msg = f"⚠️ AI 回應失敗：{e}"
+                    print(f"❌ AI 回應失敗：{e}")
                     line_bot_api.reply_message(
                         event.reply_token,
-                        TextSendMessage(text=error_msg)
+                        TextSendMessage(text="⚠️ AI 回應失敗，請稍後再試。")
                     )
 
     return "OK"
