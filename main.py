@@ -77,7 +77,10 @@ def webhook():
 
                     # 確保 content 是字串
                     content = f"{user}: {text}" if isinstance(text, str) else str(text)
-                    messages.append({"role": role, "content": content})
+                    messages.append({
+                        "role": role,
+                        "content": content  # 這裡務必保證是純 string
+                    })
 
                 try:
                     reply = ask_assistant(messages)
