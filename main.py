@@ -7,7 +7,7 @@ from datetime import datetime
 import os
 import json
 
-from prompt import ask_assistant  # ✅ 使用 assistant API 的方法
+from prompt import ask_assistant  # ✅ 使用 ChatCompletion 的 ask_assistant 函式
 
 app = Flask(__name__)
 
@@ -34,8 +34,9 @@ def webhook():
     events = parser.parse(body, signature)
 
     for event in events:
+        # 只處理文字訊息
         if isinstance(event, MessageEvent) and isinstance(event.message, TextMessage):
-            # ➤ 判斷訊息來自群組 / 聊天室 / 個人
+            # 判斷訊息來源（群組、聊天室、一對一）
             if isinstance(event.source, SourceGroup):
                 source_id = event.source.group_id
             elif isinstance(event.source, SourceRoom):
@@ -47,26 +48,28 @@ def webhook():
             msg_text = event.message.text
             timestamp = datetime.now().isoformat()
 
-            # ➤ 儲存使用者訊息至 Firestore
+            # 儲存使用者訊息，並標記 "from": "user"
             db.collection("groups").document(source_id).collection("messages").add({
                 "user_id": user_id,
                 "text": msg_text,
                 "timestamp": timestamp,
-                "from": "user"  # 🔸標記來源為使用者
+                "from": "user"
             })
 
-            # ➤ 讀取最近 20 筆訊息（含 AI & 使用者）
+            # 讀取最近 20 筆訊息（包含使用者與 AI）
             history_ref = db.collection("groups").document(source_id).collection("messages")
             docs = list(history_ref.order_by("timestamp", direction=firestore.Query.DESCENDING).limit(20).stream())
+
+            # messages 格式化為純文字陣列，交給 ask_assistant 使用
             messages = [f"{doc.to_dict()['user_id']}：{doc.to_dict()['text']}" for doc in reversed(docs)]
 
-            # ➤ 檢查最近是否有「至少 2 則使用者訊息」才觸發 AI 回覆
+            # 只在最近至少有兩則「使用者」訊息時，才讓 AI 回覆
             user_msgs = [doc for doc in reversed(docs) if doc.to_dict().get("from") == "user"]
             if len(user_msgs) >= 2:
                 try:
                     reply = ask_assistant(messages)
 
-                    # ➤ 儲存 AI 回覆到 Firestore（與使用者訊息一起放）
+                    # 儲存 AI 回覆，標記 "from": "assistant"
                     db.collection("groups").document(source_id).collection("messages").add({
                         "user_id": "AI",
                         "text": reply,
@@ -74,7 +77,7 @@ def webhook():
                         "from": "assistant"
                     })
 
-                    # ➤ 回覆至 LINE
+                    # 回覆 LINE
                     line_bot_api.reply_message(
                         event.reply_token,
                         TextSendMessage(text=reply)
