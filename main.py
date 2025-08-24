@@ -28,7 +28,6 @@ parser = WebhookParser(os.getenv("LINE_CHANNEL_SECRET"))
 
 # ====== Webhook 路由入口 ======
 @app.route("/callback", methods=["POST"])
-@app.route("/callback", methods=["POST"])
 def webhook():
     signature = request.headers["X-Line-Signature"]
     body = request.get_data(as_text=True)
