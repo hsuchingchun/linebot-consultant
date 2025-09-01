@@ -78,6 +78,8 @@ web_modules/
 .env.test.local
 .env.production.local
 .env.local
+venv
+__pycache__
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache
@@ -137,5 +139,4 @@ dist
 
 # Firebase Admin 金鑰
 serviceAccountKey.json
-
 .DS_Store
